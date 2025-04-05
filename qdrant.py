@@ -1,5 +1,5 @@
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
+from qdrant_client.models import Distance, VectorParams, PointStruct, Filter
 from sentence_transformers import SentenceTransformer 
 import os
 from dotenv import load_dotenv
@@ -7,6 +7,7 @@ import uuid
 import glob
 from pathlib import Path
 from typing import List, Dict, Any
+import time
 
 load_dotenv()
 api_key = os.environ.get("QDRANT_API_KEY")
@@ -18,8 +19,29 @@ client = QdrantClient(
 )
 
 # Initialize embedding model
-model = SentenceTransformer("all-MiniLM-L6-v2")
+model = SentenceTransformer("all-mpnet-base-v2")
 godot_project_path = r"C:\Users\Mitch\Game Dev\Emergency-Hotfix"
+
+def truncate_collection(client, collection_name):
+    """Remove all points from a collection without deleting the collection itself."""
+    try:
+        # Check if collection exists
+        collections = client.get_collections()
+        collection_names = [c.name for c in collections.collections]
+        
+        if collection_name in collection_names:
+            # Use a filter that matches all points
+            client.delete(
+                collection_name=collection_name,
+                points_selector=Filter(
+                    must=[],  # Empty filter will match all points
+                )
+            )
+            print(f"Truncated collection: {collection_name}")
+        else:
+            print(f"Collection {collection_name} doesn't exist, nothing to truncate")
+    except Exception as e:
+        print(f"Error truncating collection {collection_name}: {e}")
 
 def upload_batch_with_retry(client, collection_name, batch_points, max_retries=3, delay=2):
     """
@@ -163,12 +185,42 @@ def process_file_batch(batch_files, project_path, model, stats, client, collecti
         file_points, stats = process_file(file_path, project_path, model, stats)
         batch_points.extend(file_points)
     
-    # Upload batch if there are any points
     if batch_points:
         success = upload_batch_with_retry(client, collection_name, batch_points)
         if not success:
             stats["errors"] += 1
     
+    return stats
+
+def index_godot_docs(version="stable", collection_name="godot_docs"):
+    """Clone and index Godot documentation."""
+    # Clone repo (shallow clone to save space/time)
+    docs_path = "godot-docs-temp"
+    os.makedirs(docs_path, exist_ok=True)
+    
+    print(f"Cloning Godot docs ({version} branch)...")
+    subprocess.run(["git", "clone", "--depth", "1", "-b", version, 
+                   "https://github.com/godotengine/godot-docs.git", docs_path])
+    
+    truncate_collection(client, collection_name)
+
+    collections = client.get_collections()
+    collection_names = [c.name for c in collections.collections]
+    
+    if collection_name not in collection_names:
+        print(f"Collection '{collection_name}' doesn't exist. Creating it first...")
+        create_collection(collection_name)
+    
+    # Index the documentation (focusing on classes directory for API reference)
+    print("Indexing documentation...")
+    stats = index_godot_project(
+        project_path=os.path.join(docs_path, "classes"),
+        client=client,
+        collection_name=collection_name,
+        file_extensions=[".rst", ".md", ".txt"]
+    )
+    
+    print(f"Indexed {stats['files_processed']} documentation files.")
     return stats
 
 def index_godot_project(
@@ -198,6 +250,8 @@ def index_godot_project(
     # Initialize model if not provided
     if model is None:
         model = SentenceTransformer("all-MiniLM-L6-v2")
+
+    truncate_collection(client, collection_name)
     
     # Statistics
     stats = {

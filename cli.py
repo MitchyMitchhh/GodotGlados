@@ -2,14 +2,31 @@ import argparse
 import os
 import sys
 import subprocess
+import pyperclip
 
 # Import everything from your existing qdrant.py file
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from qdrant import *  # This imports all variables and functions
 
-def query_database(text, limit=3, collections=None):
+def query_database(text, limit=3, collections=None, include_rules=False):
     """Query multiple collections and combine the results."""
-    # If no collections specified, search all available collections
+    all_context = []
+    if include_rules:
+        try:
+            rules_file_path = os.path.join(os.path.dirname(__file__), "project_rules.md")
+            if os.path.exists(rules_file_path):
+                with open(rules_file_path, 'r') as f:
+                    rules_content = f.read()
+                all_context.append("--- PROJECT RULES ---")
+                all_context.append(rules_content)
+            else:
+                rules_context = get_context_for_query("project coding standards rules", 1, "godot_game")
+                if rules_context.strip():
+                    all_context.append("--- PROJECT RULES ---")
+                    all_context.append(rules_context)
+        except Exception as e:
+            print(f"Error retrieving project rules: {e}")
+    
     if collections is None:
         try:
             all_collections = client.get_collections()
@@ -17,12 +34,10 @@ def query_database(text, limit=3, collections=None):
             print(f"Searching across all collections: {collections}")
         except Exception as e:
             print(f"Error retrieving collections: {e}")
-            collections = ["godot_game", "godot_docs"]  # Fallback to defaults
+            collections = ["godot_game", "godot_docs"]
     
-    all_context = []
     for collection in collections:
         try:
-            # Get context from this collection
             context = get_context_for_query(text, limit, collection)
             if context.strip():
                 all_context.append(f"\n--- CONTEXT FROM {collection.upper()} ---")
@@ -31,11 +46,13 @@ def query_database(text, limit=3, collections=None):
             print(f"Error querying collection '{collection}': {e}")
     
     if all_context:
-        combined_context = "\n".join(all_context)
+        combined_context = "\n\n".join(all_context)
         print("\n--- CONTEXT FOR CLAUDE ---")
         print(combined_context)
         print("\n--- END CONTEXT ---")
         return combined_context
+        pyperclip.copy(context)
+        print("Context copied to clipboard!")
     else:
         print("No relevant context found in any collection.")
         return ""
@@ -87,16 +104,24 @@ def delete_collection(name):
     else:
         print("Deletion cancelled.")
 
-def add_godot_docs(version="stable", collection_name="godot_docs"):
+def index_godot_docs(version="stable", collection_name="godot_docs"):
     """Clone and index Godot documentation."""
     # Clone repo (shallow clone to save space/time)
     docs_path = "godot-docs-temp"
-    os.makedirs(docs_path, exist_ok=True)
     
-    print(f"Cloning Godot docs ({version} branch)...")
-    subprocess.run(["git", "clone", "--depth", "1", "-b", version, 
-                   "https://github.com/godotengine/godot-docs.git", docs_path])
-    
+    if os.path.exists(docs_path):
+        print(f"Directory {docs_path} already exists. Updating instead of cloning...")
+        # Update the repo
+        subprocess.run(["git", "-C", docs_path, "pull"])
+    else:
+        # Directory doesn't exist, so create parent directories if needed
+        os.makedirs(os.path.dirname(docs_path), exist_ok=True)
+        
+        # Clone if doesn't exist
+        print(f"Cloning Godot docs ({version} branch)...")
+        subprocess.run(["git", "clone", "--depth", "1", "-b", version, 
+                       "https://github.com/godotengine/godot-docs.git", docs_path])
+        
     collections = client.get_collections()
     collection_names = [c.name for c in collections.collections]
     
@@ -124,9 +149,10 @@ def setup_parser():
     query_parser = subparsers.add_parser('query', help='Query the vector database')
     query_parser.add_argument('text', help='The query text')
     query_parser.add_argument('--limit', type=int, default=3, help='Maximum number of results')
-    query_parser.add_argument('--collections', nargs='+', choices=['godot_game', 'godot_docs', 'all'], default=['all'], help='Collections to search')
-    
-    index_parser = subparsers.add_parser('index', help='Index a Godot project')
+    query_parser.add_argument('--collections', nargs='+', choices=['godot_game', 'godot_docs'], default=None, help='Collections to search')
+    query_parser.add_argument('--rules', action='store_true', help='Include project rules in context')
+        
+    index_parser = subparsers.add_parser('index-project', help='Index a Godot project')
     index_parser.add_argument('--path', type=str, default=r"C:\Users\Mitch\Game Dev\Emergency-Hotfix", help='Path to Godot project')
     index_parser.add_argument('--chunk-size', type=int, default=1000, help='Size of text chunks')
     index_parser.add_argument('--overlap', type=int, default=200, help='Overlap between chunks')
@@ -139,7 +165,7 @@ def setup_parser():
     delete_collection_parser = subparsers.add_parser('delete-collection', help='Delete a collection')
     delete_collection_parser.add_argument('name', help='Collection name')
     
-    docs_parser = subparsers.add_parser('add-docs', help='Add Godot documentation to the RAG system')
+    docs_parser = subparsers.add_parser('index-docs', help='Add Godot documentation to the RAG system')
     docs_parser.add_argument('--version', default='stable', help='Doc version (branch name)')
     docs_parser.add_argument('--collection', default='godot_docs', help='Collection name for docs')
     
@@ -151,10 +177,13 @@ def main():
     args = parser.parse_args()
     
     if args.command == 'query':
-        query_database(args.text, args.limit)
+        query_database(args.text, args.limit, args.collections, args.rules)
         
-    elif args.command == 'index':
+    elif args.command == 'index-project':
         index_project(args.path, args.chunk_size, args.overlap)
+
+    elif args.command == 'index-docs':
+        index_godot_docs(args.version, args.collection)
         
     elif args.command == 'create-collection':
         create_collection(args.name)
@@ -164,9 +193,6 @@ def main():
             
     elif args.command == 'delete-collection':
         delete_collection(args.name)
-    
-    elif args.command == 'add-docs':
-        add_godot_docs(args.version, args.collection)
             
     else:
         parser.print_help()
