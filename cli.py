@@ -7,13 +7,38 @@ import subprocess
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from qdrant import *  # This imports all variables and functions
 
-def query_database(text, limit=3):
-    """Query the vector database for context."""
-    context = get_context_for_query(text, limit)
-    print("\n--- CONTEXT FOR CLAUDE ---")
-    print(context)
-    print("\n--- END CONTEXT ---")
-    return context
+def query_database(text, limit=3, collections=None):
+    """Query multiple collections and combine the results."""
+    # If no collections specified, search all available collections
+    if collections is None:
+        try:
+            all_collections = client.get_collections()
+            collections = [c.name for c in all_collections.collections]
+            print(f"Searching across all collections: {collections}")
+        except Exception as e:
+            print(f"Error retrieving collections: {e}")
+            collections = ["godot_game", "godot_docs"]  # Fallback to defaults
+    
+    all_context = []
+    for collection in collections:
+        try:
+            # Get context from this collection
+            context = get_context_for_query(text, limit, collection)
+            if context.strip():
+                all_context.append(f"\n--- CONTEXT FROM {collection.upper()} ---")
+                all_context.append(context)
+        except Exception as e:
+            print(f"Error querying collection '{collection}': {e}")
+    
+    if all_context:
+        combined_context = "\n".join(all_context)
+        print("\n--- CONTEXT FOR CLAUDE ---")
+        print(combined_context)
+        print("\n--- END CONTEXT ---")
+        return combined_context
+    else:
+        print("No relevant context found in any collection.")
+        return ""
 
 def index_project(path=r"C:\Users\Mitch\Game Dev\Emergency-Hotfix", chunk_size=1000, chunk_overlap=200):
     """Index a Godot project into the vector database."""
@@ -99,6 +124,7 @@ def setup_parser():
     query_parser = subparsers.add_parser('query', help='Query the vector database')
     query_parser.add_argument('text', help='The query text')
     query_parser.add_argument('--limit', type=int, default=3, help='Maximum number of results')
+    query_parser.add_argument('--collections', nargs='+', choices=['godot_game', 'godot_docs', 'all'], default=['all'], help='Collections to search')
     
     index_parser = subparsers.add_parser('index', help='Index a Godot project')
     index_parser.add_argument('--path', type=str, default=r"C:\Users\Mitch\Game Dev\Emergency-Hotfix", help='Path to Godot project')

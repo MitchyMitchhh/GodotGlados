@@ -276,13 +276,24 @@ def index_file(file_path):
     except Exception as e:
         print(f"Error indexing {file_path}: {e}")
 
-# Function to find relevant context for a query
-def get_context_for_query(query, limit=3):
+def get_context_for_query(query, limit=3, collection_name="godot_game"):
+    """
+    Query a collection for relevant context.
+    
+    Args:
+        query: The query text
+        limit: Maximum number of results to return
+        collection_name: Name of the collection to query
+    
+    Returns:
+        str: Formatted context from the query results
+    """
     # Encode the query
     query_vector = model.encode(query).tolist()
     
+    # Query the collection
     search_result = client.query_points(
-        collection_name="godot_game",
+        collection_name=collection_name,
         query=query_vector,
         limit=limit
     ).points
@@ -293,7 +304,7 @@ def get_context_for_query(query, limit=3):
         context += f"\n--- From {point.payload.get('source', 'unknown')} ---\n"
         context += point.payload.get('text', 'No text available') + "\n"
         context += f"(Relevance score: {point.score:.4f})\n"
-    print(context)
+    
     return context
 
 # Add test data to your collection
