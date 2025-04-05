@@ -8,8 +8,6 @@ import glob
 from pathlib import Path
 from typing import List, Dict, Any
 
-# Set this in your terminal before running the script
-# Windows: set QDRANT_API_KEY=your-key-here
 load_dotenv()
 api_key = os.environ.get("QDRANT_API_KEY")
 QDRANT_URL = "https://401a1d8d-9b06-41b9-b8b3-5c839ac6d254.us-east-1-0.aws.cloud.qdrant.io"
@@ -22,6 +20,156 @@ client = QdrantClient(
 # Initialize embedding model
 model = SentenceTransformer("all-MiniLM-L6-v2")
 godot_project_path = r"C:\Users\Mitch\Game Dev\Emergency-Hotfix"
+
+def upload_batch_with_retry(client, collection_name, batch_points, max_retries=3, delay=2):
+    """
+    Upload a batch of points to Qdrant with retry logic.
+    
+    Args:
+        client: The Qdrant client
+        collection_name: Name of the collection
+        batch_points: List of points to upload
+        max_retries: Maximum number of retry attempts
+        delay: Seconds to wait between retries
+        
+    Returns:
+        bool: True if upload was successful, False otherwise
+    """
+    for retry in range(max_retries):
+        try:
+            client.upsert(
+                collection_name=collection_name,
+                points=batch_points
+            )
+            print(f"Uploaded batch of {len(batch_points)} chunks")
+            return True
+        except Exception as e:
+            if retry < max_retries - 1:
+                print(f"Upload failed, retrying ({retry+1}/{max_retries})...")
+                time.sleep(delay)
+            else:
+                print(f"Error uploading batch after {max_retries} attempts: {e}")
+                return False
+    return False
+
+def create_chunks(content, chunk_size, chunk_overlap, min_chunk_size=50):
+    """
+    Split text content into overlapping chunks.
+    
+    Args:
+        content: Text content to split
+        chunk_size: Size of each chunk in characters
+        chunk_overlap: Overlap between chunks in characters
+        min_chunk_size: Minimum size for a valid chunk
+        
+    Returns:
+        list: List of text chunks
+    """
+    chunks = []
+    for start_idx in range(0, len(content), chunk_size - chunk_overlap):
+        end_idx = min(start_idx + chunk_size, len(content))
+        chunk = content[start_idx:end_idx]
+        if len(chunk.strip()) > min_chunk_size:  # Skip chunks that are too small
+            chunks.append(chunk)
+    return chunks
+
+def process_file(file_path, project_path, model, stats, skip_dirs=[".git", ".import", "addons"]):
+    """
+    Process a single file and create points for indexing.
+    
+    Args:
+        file_path: Path to the file
+        project_path: Root project path for relative references
+        model: SentenceTransformer model
+        stats: Statistics dictionary
+        skip_dirs: Directories to skip
+        
+    Returns:
+        tuple: (list of points, updated stats)
+    """
+    points = []
+    try:
+        # Get relative path for cleaner source reference
+        rel_path = os.path.relpath(file_path, project_path)
+        
+        # Skip files in certain directories
+        if any(skip_dir in rel_path for skip_dir in skip_dirs):
+            return points, stats
+        
+        # Read file content
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read()
+        
+        # Skip empty files
+        if not content.strip():
+            return points, stats
+        
+        # Create chunks with overlap
+        chunks = create_chunks(content, 1000, 200)
+        
+        # Process each chunk
+        for i, chunk in enumerate(chunks):
+            # Create embedding
+            embedding = model.encode(chunk).tolist()
+            
+            # Create metadata
+            metadata = {
+                "source": rel_path,
+                "text": chunk,
+                "chunk_index": i,
+                "total_chunks": len(chunks),
+                "file_type": os.path.splitext(file_path)[1][1:],  # Extension without dot
+            }
+            
+            # Add point
+            points.append(
+                PointStruct(
+                    id=stats["chunks_created"] + len(points) + 1,  # Numeric ID
+                    vector=embedding,
+                    payload=metadata
+                )
+            )
+        
+        stats["files_processed"] += 1
+        stats["chunks_created"] += len(chunks)
+        
+        if stats["files_processed"] % 10 == 0:
+            print(f"Processed {stats['files_processed']} files...")
+            
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
+        stats["errors"] += 1
+    
+    return points, stats
+
+def process_file_batch(batch_files, project_path, model, stats, client, collection_name):
+    """
+    Process a batch of files and upload their points.
+    
+    Args:
+        batch_files: List of file paths to process
+        project_path: Root project path
+        model: SentenceTransformer model
+        stats: Statistics dictionary
+        client: Qdrant client
+        collection_name: Collection name
+        
+    Returns:
+        dict: Updated statistics
+    """
+    batch_points = []
+    
+    for file_path in batch_files:
+        file_points, stats = process_file(file_path, project_path, model, stats)
+        batch_points.extend(file_points)
+    
+    # Upload batch if there are any points
+    if batch_points:
+        success = upload_batch_with_retry(client, collection_name, batch_points)
+        if not success:
+            stats["errors"] += 1
+    
+    return stats
 
 def index_godot_project(
     project_path: str,
@@ -60,7 +208,7 @@ def index_godot_project(
     
     print(f"Starting to index Godot project at: {project_path}")
     
-    # Find all relevant files
+    # Find and process all relevant files
     for extension in file_extensions:
         file_pattern = os.path.join(project_path, f"**/*{extension}")
         files = glob.glob(file_pattern, recursive=True)
@@ -71,77 +219,7 @@ def index_godot_project(
         batch_size = 10
         for i in range(0, len(files), batch_size):
             batch_files = files[i:i+batch_size]
-            batch_points = []
-            
-            for file_path in batch_files:
-                try:
-                    # Get relative path for cleaner source reference
-                    rel_path = os.path.relpath(file_path, project_path)
-                    
-                    # Skip files in certain directories
-                    if any(skip_dir in rel_path for skip_dir in [".git", ".import", "addons"]):
-                        continue
-                    
-                    # Read file content
-                    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
-                        content = f.read()
-                    
-                    # Skip empty files
-                    if not content.strip():
-                        continue
-                    
-                    # Create chunks with overlap
-                    chunks = []
-                    for start_idx in range(0, len(content), chunk_size - chunk_overlap):
-                        end_idx = min(start_idx + chunk_size, len(content))
-                        chunk = content[start_idx:end_idx]
-                        if len(chunk.strip()) > 50:  # Skip chunks that are too small
-                            chunks.append(chunk)
-                    
-                    # Process each chunk
-                    for i, chunk in enumerate(chunks):
-                        # Create embedding
-                        embedding = model.encode(chunk).tolist()
-                        
-                        # Create metadata
-                        metadata = {
-                            "source": rel_path,
-                            "text": chunk,
-                            "chunk_index": i,
-                            "total_chunks": len(chunks),
-                            "file_type": os.path.splitext(file_path)[1][1:],  # Extension without dot
-                        }
-                        
-                        # Add point
-                        batch_points.append(
-                            PointStruct(
-                                id=stats["chunks_created"] + len(batch_points) + 1,  # Numeric ID
-                                vector=embedding,
-                                payload=metadata
-                            )
-                        )
-                    
-                    stats["files_processed"] += 1
-                    stats["chunks_created"] += len(chunks)
-                    
-                    if stats["files_processed"] % 10 == 0:
-                        print(f"Processed {stats['files_processed']} files...")
-                        
-                except Exception as e:
-                    print(f"Error processing {file_path}: {e}")
-                    stats["errors"] += 1
-            
-            # Upload batch
-            if batch_points:
-                try:
-                    client.upsert(
-                        collection_name=collection_name,
-                        points=batch_points
-                    )
-                    print(f"Uploaded batch of {len(batch_points)} chunks")
-                except Exception as e:
-                    print(f"Error uploading batch: {e}")
-                    stats["errors"] += 1
+            stats = process_file_batch(batch_files, project_path, model, stats, client, collection_name)
     
     print("\nIndexing complete!")
     print(f"Files processed: {stats['files_processed']}")
