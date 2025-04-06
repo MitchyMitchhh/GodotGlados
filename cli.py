@@ -47,12 +47,12 @@ def query_database(text, limit=3, collections=None, include_rules=False):
     
     if all_context:
         combined_context = "\n\n".join(all_context)
-        print("\n--- CONTEXT FOR CLAUDE ---")
+        print("\n--- CONTEXT FOR LLM ---")
         print(combined_context)
         print("\n--- END CONTEXT ---")
-        return combined_context
-        pyperclip.copy(context)
+        pyperclip.copy(combined_context)
         print("Context copied to clipboard!")
+        return combined_context
     else:
         print("No relevant context found in any collection.")
         return ""

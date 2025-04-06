@@ -249,7 +249,7 @@ def index_godot_project(
     """
     # Initialize model if not provided
     if model is None:
-        model = SentenceTransformer("all-MiniLM-L6-v2")
+        model = SentenceTransformer("all-mpnet-base-v2")
 
     truncate_collection(client, collection_name)
     
