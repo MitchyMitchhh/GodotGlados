@@ -11,6 +11,7 @@ from qdrant import *  # This imports all variables and functions
 def query_database(text, limit=3, collections=None, include_rules=False):
     """Query multiple collections and combine the results."""
     all_context = []
+    all_context.append(f"Prompt: {text}")
     if include_rules:
         try:
             rules_file_path = os.path.join(os.path.dirname(__file__), "project_rules.md")
