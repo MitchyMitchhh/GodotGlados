@@ -157,6 +157,10 @@ def setup_parser():
     index_parser.add_argument('--chunk-size', type=int, default=1000, help='Size of text chunks')
     index_parser.add_argument('--overlap', type=int, default=200, help='Overlap between chunks')
     
+    docs_parser = subparsers.add_parser('index-docs', help='Index Godot documentation to the RAG system')
+    docs_parser.add_argument('--version', default='stable', help='Doc version (branch name)')
+    docs_parser.add_argument('--collection', default='godot_docs', help='Collection name for docs')
+    
     create_collection_parser = subparsers.add_parser('create-collection', help='Create a new collection')
     create_collection_parser.add_argument('--name', default='godot_game', help='Collection name')
     
@@ -165,10 +169,7 @@ def setup_parser():
     delete_collection_parser = subparsers.add_parser('delete-collection', help='Delete a collection')
     delete_collection_parser.add_argument('name', help='Collection name')
     
-    docs_parser = subparsers.add_parser('index-docs', help='Add Godot documentation to the RAG system')
-    docs_parser.add_argument('--version', default='stable', help='Doc version (branch name)')
-    docs_parser.add_argument('--collection', default='godot_docs', help='Collection name for docs')
-    
+   
     return parser
 
 def main():
