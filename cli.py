@@ -8,10 +8,13 @@ import pyperclip
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from qdrant import *  # This imports all variables and functions
 
-def query_database(text, limit=3, collections=None, include_rules=False):
+def query_database(text, limit=3, collections=None, include_rules=False, update_project=False):
     """Query multiple collections and combine the results."""
     all_context = []
     all_context.append(f"Prompt: {text}")
+    if update_project:
+        print('Updating Godot project file index')
+        index_project()
     if include_rules:
         try:
             rules_file_path = os.path.join(os.path.dirname(__file__), "project_rules.md")
@@ -152,6 +155,7 @@ def setup_parser():
     query_parser.add_argument('--limit', type=int, default=3, help='Maximum number of results')
     query_parser.add_argument('--collections', nargs='+', choices=['godot_game', 'godot_docs'], default=None, help='Collections to search')
     query_parser.add_argument('--rules', action='store_true', help='Include project rules in context')
+    query_parser.add_argument('--update_project', action='store_true', help='Update Godot Project Index')
         
     index_parser = subparsers.add_parser('index-project', help='Index a Godot project')
     index_parser.add_argument('--path', type=str, default=r"C:\Users\Mitch\Game Dev\Emergency-Hotfix", help='Path to Godot project')
@@ -179,7 +183,7 @@ def main():
     args = parser.parse_args()
     
     if args.command == 'query':
-        query_database(args.text, args.limit, args.collections, args.rules)
+        query_database(args.text, args.limit, args.collections, args.rules, args.update_project)
         
     elif args.command == 'index-project':
         index_project(args.path, args.chunk_size, args.overlap)
