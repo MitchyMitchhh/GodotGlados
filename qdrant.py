@@ -25,12 +25,10 @@ godot_project_path = r"C:\Users\Mitch\Game Dev\Emergency-Hotfix"
 def truncate_collection(client, collection_name):
     """Remove all points from a collection without deleting the collection itself."""
     try:
-        # Check if collection exists
         collections = client.get_collections()
         collection_names = [c.name for c in collections.collections]
         
         if collection_name in collection_names:
-            # Use a filter that matches all points
             client.delete(
                 collection_name=collection_name,
                 points_selector=Filter(
@@ -111,30 +109,22 @@ def process_file(file_path, project_path, model, stats, skip_dirs=[".git", ".imp
     """
     points = []
     try:
-        # Get relative path for cleaner source reference
         rel_path = os.path.relpath(file_path, project_path)
         
-        # Skip files in certain directories
         if any(skip_dir in rel_path for skip_dir in skip_dirs):
             return points, stats
         
-        # Read file content
         with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
             content = f.read()
         
-        # Skip empty files
         if not content.strip():
             return points, stats
         
-        # Create chunks with overlap
         chunks = create_chunks(content, 1000, 200)
         
-        # Process each chunk
         for i, chunk in enumerate(chunks):
-            # Create embedding
             embedding = model.encode(chunk).tolist()
             
-            # Create metadata
             metadata = {
                 "source": rel_path,
                 "text": chunk,
@@ -247,13 +237,11 @@ def index_godot_project(
     Returns:
         dict: Summary of indexing results
     """
-    # Initialize model if not provided
     if model is None:
         model = SentenceTransformer("all-mpnet-base-v2")
 
     truncate_collection(client, collection_name)
     
-    # Statistics
     stats = {
         "files_processed": 0,
         "chunks_created": 0,
@@ -269,7 +257,6 @@ def index_godot_project(
         
         print(f"Found {len(files)} {extension} files")
         
-        # Process files in batches to avoid memory issues
         batch_size = 10
         for i in range(0, len(files), batch_size):
             batch_files = files[i:i+batch_size]
@@ -286,27 +273,23 @@ def create_collection():
     client.recreate_collection(
         collection_name="godot_game",
         vectors_config=VectorParams(
-            size=model.get_sentence_embedding_dimension(),  # Usually 384 for this model
+            size=model.get_sentence_embedding_dimension(),
             distance=Distance.COSINE
         )
     )
 
-# Function to add a file to the vector database
 def index_file(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
             
-            # Split into chunks (adjust chunk size as needed)
             chunk_size = 1000
             chunks = [content[i:i+chunk_size] for i in range(0, len(content), chunk_size)]
             
             points = []
             for i, chunk in enumerate(chunks):
-                # Generate embedding for this chunk
                 embedding = model.encode(chunk).tolist()
                 
-                # Create a point
                 points.append(
                     PointStruct(
                         id=f"{file_path.replace('/', '_')}_{i}",
@@ -319,7 +302,6 @@ def index_file(file_path):
                     )
                 )
             
-            # Upload points in batch
             if points:
                 client.upsert(
                     collection_name="godot_game",
@@ -342,17 +324,14 @@ def get_context_for_query(query, limit=3, collection_name="godot_game"):
     Returns:
         str: Formatted context from the query results
     """
-    # Encode the query
     query_vector = model.encode(query).tolist()
     
-    # Query the collection
     search_result = client.query_points(
         collection_name=collection_name,
         query=query_vector,
         limit=limit
     ).points
     
-    # Format the results as context
     context = ""
     for point in search_result:
         context += f"\n--- From {point.payload.get('source', 'unknown')} ---\n"
@@ -360,53 +339,8 @@ def get_context_for_query(query, limit=3, collection_name="godot_game"):
         context += f"(Relevance score: {point.score:.4f})\n"
     
     return context
-
-# Add test data to your collection
-def add_test_data():
-    print("Adding test Godot game data...")
-    
-    # Sample Godot documentation snippets
-    test_documents = [
-        {
-            "text": "Player movement in Godot is typically handled by accessing the Input class and applying forces or velocity to the player character's physics body. For example, in GDScript you might use: if Input.is_action_pressed('ui_right'): velocity.x = SPEED.",
-            "source": "movement_tutorial.gd"
-        },
-        {
-            "text": "Godot's physics system includes KinematicBody2D, RigidBody2D, and StaticBody2D. KinematicBody2D is best for player-controlled characters as it allows for precise movement control.",
-            "source": "physics_overview.md"
-        },
-        {
-            "text": "Camera follow in Godot can be implemented by setting the camera's global_position to the player's position each frame, optionally with smoothing: camera.global_position = camera.global_position.linear_interpolate(player.global_position, 0.1).",
-            "source": "camera_system.gd"
-        }
-    ]
-    
-    # Create points from documents
-    points = []
-    for i, doc in enumerate(test_documents):
-        # Encode text to vector
-        vector = model.encode(doc["text"]).tolist()
-        
-        # Create point with UUID
-        point_id = str(uuid.uuid4())
-        points.append(
-            PointStruct(
-                id=i+1,  # Using numeric ID for simplicity
-                vector=vector,
-                payload=doc
-            )
-        )
-    
-    # Add points to collection
-    client.upsert(
-        collection_name="godot_game",
-        points=points
-    )
-    
-    print(f"Added {len(points)} documents to 'godot_game' collection!")
-    
+  
 def run_godot_index():
-    # Check if collection exists
     collections = client.get_collections()
     collection_names = [c.name for c in collections.collections]
     
@@ -422,7 +356,6 @@ def run_godot_index():
             )
         )
     
-    # Index the project
     index_godot_project(
         project_path=godot_project_path,
         client=client,
@@ -433,7 +366,6 @@ def run_godot_index():
         chunk_overlap=200
     )
     
-    # Test a query
     print("\nTesting a query...")
     query = "How do I implement player movement?"
     query_vector = model.encode(query).tolist()
@@ -451,62 +383,5 @@ def run_godot_index():
         print(f"Text: {point.payload['text'][:150]}...")
         print(f"Score: {point.score:.4f}")
 
-# Example usage
 if __name__ == "__main__":
     run_godot_index()
-    # First time setup
-    # create_collection()
-    
-    # Index some files
-    # index_file("player.gd")
-    # index_file("game_rules.md")
-    # print("Testing Qdrant connection...")
-    #
-    # try:
-    #     # Check collections
-    #     collections = client.get_collections()
-    #     print(f"Connected successfully! Available collections: {collections}")
-    #
-    #     # Check if godot_game exists
-    #     collection_names = [c.name for c in collections.collections]
-    #     if "godot_game" not in collection_names:
-    #         print("Collection 'godot_game' doesn't exist. Creating it now...")
-    #
-    #         # Create the collection
-    #         client.create_collection(
-    #             collection_name="godot_game",
-    #             vectors_config=VectorParams(
-    #                 size=model.get_sentence_embedding_dimension(),
-    #                 distance=Distance.COSINE
-    #             )
-    #         )
-    #         print("Collection created successfully!")
-    #
-    #         # Add some test data if you want
-    #         print("Adding test data...")
-    #         test_text = "This is a test document for player movement in Godot."
-    #         test_vector = model.encode(test_text).tolist()
-    #         client.upsert(
-    #             collection_name="godot_game",
-    #             points=[
-    #                 PointStruct(
-    #                     id=uuid.uuid4(),
-    #                     vector=test_vector,
-    #                     payload={"text": test_text, "source": "test_document.txt"}
-    #                 )
-    #             ]
-    #         )
-    #         print("Test data added successfully!")
-    #     else:
-    #         add_test_data()
-    #         test_query()
-    #     # Now try to query
-    #     print("\nQuerying for 'player movement'...")
-    #     context = get_context_for_query("How does player movement work?")
-    #     print(context)
-    #
-    # except Exception as e:
-    #     print(f"Error: {e}") 
-    # # Query for context
-    # context = get_context_for_query("How does player movement work?")
-    # print(context)
