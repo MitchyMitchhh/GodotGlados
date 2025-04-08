@@ -1,0 +1,58 @@
+.App {
+  min-height: 100vh;
+}
+
+/* Card styling */
+.card {
+  border: none;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.card-header {
+  font-weight: 500;
+}
+
+/* Card with left border accent */
+.border-left-primary {
+  border-left: 4px solid #007bff !important;
+}
+
+/* Pre formatting for code blocks */
+pre {
+  font-size: 0.875rem;
+  max-height: 300px;
+  overflow: auto;
+}
+
+/* Improve form control focus */
+.form-control:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Subtle hover effects */
+.card {
+  transition: transform 0.15s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+/* Header styling */
+header {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .container {
+    max-width: 100%;
+    padding: 0 15px;
+  }
+  
+  h1 {
+    font-size: 1.75rem;
+  }
+}
