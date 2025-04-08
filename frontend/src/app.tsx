@@ -4,29 +4,59 @@ import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Container, Row, Col, Card, Form, Button, Spinner, Badge, Alert } from 'react-bootstrap';
 
-// API base URL - get from environment or use default for local development
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+// Define types
+interface CollectionResult {
+  source: string;
+  text: string;
+  score: number;
+}
+
+interface Context {
+  collection: string;
+  results: CollectionResult[];
+}
+
+interface QueryResponse {
+  query: string;
+  contexts: Context[];
+}
+
+interface LoadingState {
+  indexProject: boolean;
+  indexDocs: boolean;
+  query: boolean;
+  collections: boolean;
+}
+
+interface AlertState {
+  show: boolean;
+  variant: string;
+  message: string;
+}
+
+// API base URL - change this based on your deployment
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 function App() {
   // State variables
-  const [collections, setCollections] = useState(['godot_game', 'godot_docs']);
-  const [selectedCollections, setSelectedCollections] = useState(['godot_game', 'godot_docs']);
-  const [projectPath, setProjectPath] = useState('');
-  const [rulesFile, setRulesFile] = useState(null);
-  const [queryText, setQueryText] = useState('');
-  const [limit, setLimit] = useState(3);
-  const [includeRules, setIncludeRules] = useState(false);
-  const [queryResults, setQueryResults] = useState(null);
-  const [loading, setLoading] = useState({
+  const [collections, setCollections] = useState<string[]>(['godot_game', 'godot_docs']);
+  const [selectedCollections, setSelectedCollections] = useState<string[]>(['godot_game', 'godot_docs']);
+  const [projectPath, setProjectPath] = useState<string>('');
+  const [rulesFile, setRulesFile] = useState<File | null>(null);
+  const [queryText, setQueryText] = useState<string>('');
+  const [limit, setLimit] = useState<number>(3);
+  const [includeRules, setIncludeRules] = useState<boolean>(false);
+  const [queryResults, setQueryResults] = useState<QueryResponse | null>(null);
+  const [loading, setLoading] = useState<LoadingState>({
     indexProject: false,
     indexDocs: false,
     query: false,
     collections: false
   });
-  const [alert, setAlert] = useState({ show: false, variant: 'info', message: '' });
+  const [alert, setAlert] = useState<AlertState>({ show: false, variant: 'info', message: '' });
 
   // Show alert message
-  const showAlert = (message, variant = 'info') => {
+  const showAlert = (message: string, variant: string = 'info') => {
     setAlert({ show: true, variant, message });
     // Auto hide after 5 seconds
     setTimeout(() => setAlert({ show: false, variant: 'info', message: '' }), 5000);
@@ -62,14 +92,14 @@ function App() {
       }
     } catch (error) {
       console.error('Error fetching collections:', error);
-      // Don't show error, as the backend might be cold-starting on Render
+      // Don't show error, as the backend might be cold-starting
     } finally {
       setLoading(prev => ({ ...prev, collections: false }));
     }
   };
 
   // Handle project indexing
-  const handleIndexProject = async (e) => {
+  const handleIndexProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectPath) {
       showAlert('Please enter a project path', 'danger');
@@ -102,7 +132,7 @@ function App() {
         showAlert('Project indexed successfully!', 'success');
         fetchCollections(); // Refresh collections
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error indexing project:', error);
       showAlert(`Error indexing project: ${error.response?.data?.detail || error.message}`, 'danger');
     } finally {
@@ -124,7 +154,7 @@ function App() {
         showAlert('Godot documentation indexed successfully!', 'success');
         fetchCollections(); // Refresh collections
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error indexing docs:', error);
       showAlert(`Error indexing documentation: ${error.response?.data?.detail || error.message}`, 'danger');
     } finally {
@@ -133,7 +163,7 @@ function App() {
   };
 
   // Handle query submission
-  const handleQuery = async (e) => {
+  const handleQuery = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!queryText.trim()) {
       showAlert('Please enter a query', 'warning');
@@ -155,7 +185,7 @@ function App() {
       if (response.data.contexts.length === 0) {
         showAlert('No relevant results found. Try a different query.', 'info');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error querying:', error);
       showAlert(`Error querying: ${error.response?.data?.detail || error.message}`, 'danger');
     } finally {
@@ -164,7 +194,7 @@ function App() {
   };
 
   // Handle collection checkbox change
-  const handleCollectionChange = (collection) => {
+  const handleCollectionChange = (collection: string) => {
     if (selectedCollections.includes(collection)) {
       setSelectedCollections(selectedCollections.filter(c => c !== collection));
     } else {
@@ -173,7 +203,7 @@ function App() {
   };
 
   // Format content for display
-  const formatContent = (text) => {
+  const formatContent = (text: string) => {
     // Check if text looks like code
     const isCode = text.includes('func ') || 
                    text.includes('var ') || 
@@ -245,7 +275,12 @@ function App() {
                     <Form.Control
                       type="file"
                       accept=".md,.txt"
-                      onChange={(e) => setRulesFile(e.target.files[0])}
+                      onChange={(e) => {
+                        const files = (e.target as HTMLInputElement).files;
+                        if (files && files.length > 0) {
+                          setRulesFile(files[0]);
+                        }
+                      }}
                     />
                     <Form.Text className="text-muted">
                       Upload your project_rules.md file
@@ -440,7 +475,7 @@ function App() {
         </Row>
         
         <footer className="text-center py-4 mt-5 text-muted">
-          <small>Godot RAG Service - Deployed on Render</small>
+          <small>Godot RAG Service</small>
         </footer>
       </Container>
     </div>
