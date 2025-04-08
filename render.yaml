@@ -1,0 +1,31 @@
+services:
+  # Backend API service
+  - type: web
+    name: godot-rag-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: QDRANT_URL
+        value: YOUR_QDRANT_URL
+      - key: QDRANT_API_KEY
+        sync: false # This will prompt you to input the value securely in the Render dashboard
+    autoDeploy: true
+
+  # Frontend React app
+  - type: web
+    name: godot-rag-ui
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://godot-rag-api.onrender.com/api
+    autoDeploy: true
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+      - path: /static/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
