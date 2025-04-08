@@ -56,3 +56,50 @@ header {
     font-size: 1.75rem;
   }
 }
+
+/* Result specific styling */
+.result-card {
+  margin-top: 1rem;
+  border-left: 4px solid #007bff;
+}
+
+.score-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
+/* Query text area height */
+textarea.form-control {
+  min-height: 100px;
+}
+
+/* Bootstrap overrides */
+.btn-info {
+  color: white !important;
+}
+
+.card-header h5 {
+  margin-bottom: 0;
+}
+
+/* Spinner alignment */
+.spinner-border {
+  vertical-align: middle;
+}
+
+/* Collection list */
+.collection-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Alert styling */
+.alert {
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
