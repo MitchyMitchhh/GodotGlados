@@ -4,7 +4,6 @@ import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Container, Row, Col, Card, Form, Button, Spinner, Badge, Alert } from 'react-bootstrap';
 
-// Define types
 interface CollectionResult {
   source: string;
   text: string;
@@ -39,12 +38,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 function App() {
   // State variables
-  const [collections, setCollections] = useState<string[]>(['godot_game', 'godot_docs']);
-  const [selectedCollections, setSelectedCollections] = useState<string[]>(['godot_game', 'godot_docs']);
+  const [collections, setCollections] = useState<string[]>([]);
+  const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const [projectPath, setProjectPath] = useState<string>('');
   const [rulesFile, setRulesFile] = useState<File | null>(null);
   const [queryText, setQueryText] = useState<string>('');
-  const [limit, setLimit] = useState<number>(3);
   const [includeRules, setIncludeRules] = useState<boolean>(false);
   const [queryResults, setQueryResults] = useState<QueryResponse | null>(null);
   const [loading, setLoading] = useState<LoadingState>({
@@ -55,14 +53,12 @@ function App() {
   });
   const [alert, setAlert] = useState<AlertState>({ show: false, variant: 'info', message: '' });
 
-  // Show alert message
   const showAlert = (message: string, variant: string = 'info') => {
     setAlert({ show: true, variant, message });
     // Auto hide after 10 seconds
     setTimeout(() => setAlert({ show: false, variant: 'info', message: '' }), 10000);
   };
 
-  // Check if API is available
   useEffect(() => {
     const checkApiStatus = async () => {
       try {
@@ -97,7 +93,6 @@ function App() {
     }
   };
 
-  // Handle project indexing
   const handleIndexProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectPath) {
@@ -108,7 +103,6 @@ function App() {
     setLoading(prev => ({ ...prev, indexProject: true }));
     
     try {
-      // First upload rules file if provided
       if (rulesFile) {
         const formData = new FormData();
         formData.append('file', rulesFile);
@@ -120,7 +114,6 @@ function App() {
         });
       }
       
-      // Then index the project
       const response = await axios.post(`${API_URL}/index-project`, {
         project_path: projectPath,
         chunk_size: 1000,
@@ -129,6 +122,7 @@ function App() {
       
       if (response.data.success) {
         showAlert('Project indexed successfully!', 'success');
+        fetchCollections();
       }
     } catch (error: any) {
       console.error('Error indexing project:', error);
@@ -138,7 +132,6 @@ function App() {
     }
   };
 
-  // Handle Godot docs indexing
   const handleIndexDocs = async () => {
     setLoading(prev => ({ ...prev, indexDocs: true }));
     
@@ -150,6 +143,7 @@ function App() {
       
       if (response.data.success) {
         showAlert('Godot documentation indexed successfully!', 'success');
+        fetchCollections();
       }
     } catch (error: any) {
       console.error('Error indexing docs:', error);
@@ -159,7 +153,6 @@ function App() {
     }
   };
 
-  // Handle query submission
   const handleQuery = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!queryText.trim()) {
@@ -172,7 +165,6 @@ function App() {
     try {
       const response = await axios.post(`${API_URL}/query`, {
         query: queryText,
-        limit: limit,
         collections: selectedCollections,
         include_rules: includeRules
       });
@@ -182,7 +174,6 @@ function App() {
       if (response.data.contexts.length === 0) {
         showAlert('No relevant results found. Try a different query.', 'info');
       } else {
-        // Show notification that context was copied to clipboard
         showAlert('Context copied to clipboard!', 'success');
       }
     } catch (error: any) {
@@ -193,7 +184,6 @@ function App() {
     }
   };
 
-  // Handle collection checkbox change
   const handleCollectionChange = (collection: string) => {
     if (selectedCollections.includes(collection)) {
       setSelectedCollections(selectedCollections.filter(c => c !== collection));
@@ -202,7 +192,6 @@ function App() {
     }
   };
 
-  // Format content for display
   const formatContent = (text: string) => {
     // Check if text looks like code
     const isCode = text.includes('func ') || 
@@ -252,7 +241,6 @@ function App() {
         )}
         
         <Row>
-          {/* Configuration Panel */}
           <Col md={5}>
             <Card className="shadow-sm mb-4">
               <Card.Header className="bg-primary text-white">
@@ -317,6 +305,9 @@ function App() {
                 <h5 className="mb-0">Godot Documentation</h5>
               </Card.Header>
               <Card.Body>
+                <div>
+                  Only index the godot docs if a new version comes out. It can take several minutes to index.
+                </div>
                 <Button 
                   variant="success" 
                   onClick={handleIndexDocs}
@@ -343,7 +334,6 @@ function App() {
             </Card>
           </Col>
 
-          {/* Query Panel */}
           <Col md={7}>
             <Card className="shadow-sm mb-4">
               <Card.Header className="bg-info text-white">
@@ -359,17 +349,6 @@ function App() {
                       placeholder="E.g., How do I implement player movement?"
                       value={queryText}
                       onChange={(e) => setQueryText(e.target.value)}
-                    />
-                  </Form.Group>
-                  
-                  <Form.Group className="mb-3">
-                    <Form.Label>Results Limit</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min={1}
-                      max={10}
-                      value={limit}
-                      onChange={(e) => setLimit(parseInt(e.target.value))}
                     />
                   </Form.Group>
                   

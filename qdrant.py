@@ -20,7 +20,7 @@ client = QdrantClient(
 )
 
 # Initialize embedding model
-model = SentenceTransformer("all-mpnet-base-v2")
+model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
 godot_project_path = r"C:\Users\Mitch\Game Dev\Emergency-Hotfix"
 
 def truncate_collection(client, collection_name):
@@ -239,7 +239,7 @@ def index_godot_project(
         dict: Summary of indexing results
     """
     if model is None:
-        model = SentenceTransformer("all-mpnet-base-v2")
+        model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
 
     truncate_collection(client, collection_name)
     
