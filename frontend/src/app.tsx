@@ -76,7 +76,6 @@ function App() {
     checkApiStatus();
   }, []);
 
-  // Fetch available collections on component mount
   useEffect(() => {
     fetchCollections();
   }, []);
@@ -130,7 +129,6 @@ function App() {
       
       if (response.data.success) {
         showAlert('Project indexed successfully!', 'success');
-        fetchCollections(); // Refresh collections
       }
     } catch (error: any) {
       console.error('Error indexing project:', error);
@@ -152,7 +150,6 @@ function App() {
       
       if (response.data.success) {
         showAlert('Godot documentation indexed successfully!', 'success');
-        fetchCollections(); // Refresh collections
       }
     } catch (error: any) {
       console.error('Error indexing docs:', error);
@@ -314,32 +311,9 @@ function App() {
 
             <Card className="shadow-sm mb-4">
               <Card.Header className="bg-success text-white">
-                <h5 className="mb-0">Collections</h5>
+                <h5 className="mb-0">Godot Documentation</h5>
               </Card.Header>
               <Card.Body>
-                {loading.collections ? (
-                  <div className="text-center py-3">
-                    <Spinner animation="border" size="sm" role="status" />
-                    <span className="ms-2">Loading collections...</span>
-                  </div>
-                ) : collections.length > 0 ? (
-                  <>
-                    {collections.map(collection => (
-                      <Form.Check
-                        key={collection}
-                        type="checkbox"
-                        id={`collection-${collection}`}
-                        label={collection}
-                        checked={selectedCollections.includes(collection)}
-                        onChange={() => handleCollectionChange(collection)}
-                        className="mb-2"
-                      />
-                    ))}
-                  </>
-                ) : (
-                  <p className="text-muted">No collections found. Index a project or docs first.</p>
-                )}
-                
                 <Button 
                   variant="success" 
                   onClick={handleIndexDocs}
@@ -370,7 +344,7 @@ function App() {
           <Col md={7}>
             <Card className="shadow-sm mb-4">
               <Card.Header className="bg-info text-white">
-                <h5 className="mb-0">Query RAG System</h5>
+                <h5 className="mb-0">Ask Glados for help :)</h5>
               </Card.Header>
               <Card.Body>
                 <Form onSubmit={handleQuery}>
@@ -405,7 +379,37 @@ function App() {
                       onChange={(e) => setIncludeRules(e.target.checked)}
                     />
                   </Form.Group>
-                  
+
+                  <Card className="shadow-sm mb-4">
+                    <Card.Header className="bg-info text-white">
+                      <h5 className="mb-0">Included Collections</h5>
+                    </Card.Header>
+                  <Card.Body>
+                    {loading.collections ? (
+                      <div className="text-center py-3">
+                        <Spinner animation="border" size="sm" role="status" />
+                        <span className="ms-2">Loading collections...</span>
+                      </div>
+                  ) : collections.length > 0 ? (
+                    <>
+                    {collections.map(collection => (
+                      <Form.Check
+                        key={collection}
+                        type="checkbox"
+                        id={`collection-${collection}`}
+                        label={collection}
+                        checked={selectedCollections.includes(collection)}
+                        onChange={() => handleCollectionChange(collection)}
+                        className="mb-2"
+                      />
+                    ))}
+                    </>
+                  ) : (
+                    <p className="text-muted">No collections found. Index a project or docs first.</p>
+                  )}
+                    </Card.Body>
+                  </Card>
+
                   <Button 
                     variant="info" 
                     type="submit"
