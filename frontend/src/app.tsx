@@ -58,8 +58,8 @@ function App() {
   // Show alert message
   const showAlert = (message: string, variant: string = 'info') => {
     setAlert({ show: true, variant, message });
-    // Auto hide after 5 seconds
-    setTimeout(() => setAlert({ show: false, variant: 'info', message: '' }), 5000);
+    // Auto hide after 10 seconds
+    setTimeout(() => setAlert({ show: false, variant: 'info', message: '' }), 10000);
   };
 
   // Check if API is available
@@ -181,6 +181,9 @@ function App() {
       
       if (response.data.contexts.length === 0) {
         showAlert('No relevant results found. Try a different query.', 'info');
+      } else {
+        // Show notification that context was copied to clipboard
+        showAlert('Context copied to clipboard!', 'success');
       }
     } catch (error: any) {
       console.error('Error querying:', error);
@@ -225,18 +228,18 @@ function App() {
   return (
     <div className="App bg-light min-vh-100">
       <header className="bg-dark text-white py-3 mb-4">
-        <Container className="d-flex align-items-center">
+        <Container className="d-flex align-items-center justify-content-center">
           <img 
             src="https://godotengine.org/assets/logo.svg" 
             alt="Godot Logo" 
             height="40" 
             className="me-3"
           />
-          <h1 className="m-0">Godot RAG Service</h1>
+          <h1 className="m-0">Glados</h1>
         </Container>
       </header>
       
-      <Container>
+      <Container fluid>
         {alert.show && (
           <Alert 
             variant={alert.variant} 
@@ -353,7 +356,7 @@ function App() {
                     <Form.Control
                       as="textarea"
                       rows={3}
-                      placeholder="E.g., How do I implement player movement in Godot?"
+                      placeholder="E.g., How do I implement player movement?"
                       value={queryText}
                       onChange={(e) => setQueryText(e.target.value)}
                     />
@@ -382,7 +385,7 @@ function App() {
 
                   <Card className="shadow-sm mb-4">
                     <Card.Header className="bg-info text-white">
-                      <h5 className="mb-0">Included Collections</h5>
+                      <h6 className="mb-0">Included Collections</h6>
                     </Card.Header>
                   <Card.Body>
                     {loading.collections ? (
@@ -435,9 +438,12 @@ function App() {
                 </Form>
               </Card.Body>
             </Card>
+          </Col>
+        </Row>
 
-            {/* Results */}
-            {queryResults && (
+        {queryResults && (
+          <Row>
+            <Col xs={12}>
               <div className="mt-4">
                 <h5>Results for: "{queryResults.query}"</h5>
                 
@@ -460,9 +466,9 @@ function App() {
                               Source: {result.source}
                             </Card.Subtitle>
                             
-                            <Card.Text className="mt-3">
+                            <div className="mt-3">
                               {formatContent(result.text)}
-                            </Card.Text>
+                            </div>
                           </Card.Body>
                         </Card>
                       ))}
@@ -474,10 +480,10 @@ function App() {
                   </div>
                 )}
               </div>
-            )}
-          </Col>
-        </Row>
-        
+            </Col>
+          </Row>
+        )}
+
         <footer className="text-center py-4 mt-5 text-muted">
           <small>Godot RAG Service</small>
         </footer>

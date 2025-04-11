@@ -56,13 +56,13 @@ pre {
 }
 
 /* Subtle hover effects */
-.card {
-  transition: transform 0.15s ease;
-}
+/* .card { */
+/*   transition: transform 0.15s ease; */
+/* } */
 
-.card:hover {
-  transform: translateY(-2px);
-}
+/* .card:hover { */
+/*   transform: translateY(-2px); */
+/* } */
 
 /* Header styling */
 header {
