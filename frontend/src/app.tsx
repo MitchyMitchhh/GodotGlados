@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import './App.css';
+import './app.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Container, Row, Col, Card, Form, Button, Spinner, Badge, Alert } from 'react-bootstrap';
 
