@@ -10,16 +10,17 @@ from typing import List, Dict, Any
 import time
 
 load_dotenv()
+
 api_key = os.environ.get("QDRANT_API_KEY")
-QDRANT_URL = "https://401a1d8d-9b06-41b9-b8b3-5c839ac6d254.us-east-1-0.aws.cloud.qdrant.io"
+endpoint_url = os.environ.get("QDRANT_ENDPOINT") 
 
 client = QdrantClient(
-    url=QDRANT_URL,
+    url=endpoint_url,
     api_key=api_key,
 )
 
 # Initialize embedding model
-model = SentenceTransformer("all-mpnet-base-v2")
+model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
 godot_project_path = r"C:\Users\Mitch\Game Dev\Emergency-Hotfix"
 
 def truncate_collection(client, collection_name):
@@ -238,7 +239,7 @@ def index_godot_project(
         dict: Summary of indexing results
     """
     if model is None:
-        model = SentenceTransformer("all-mpnet-base-v2")
+        model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
 
     truncate_collection(client, collection_name)
     

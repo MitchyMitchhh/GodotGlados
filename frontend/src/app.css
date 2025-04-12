@@ -1,5 +1,29 @@
 .App {
   min-height: 100vh;
+  width: 100%;
+}
+
+.container {
+  max-width: 1200px !important; /* Override Bootstrap's defaults */
+  width: 100%;
+  padding-left: 15px;
+  padding-right: 15px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Adjust card widths */
+@media (min-width: 992px) {
+  .card {
+    width: 100%;
+  }
+}
+
+/* Make sure rows use full width */
+.row {
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 /* Card styling */
@@ -32,13 +56,13 @@ pre {
 }
 
 /* Subtle hover effects */
-.card {
-  transition: transform 0.15s ease;
-}
+/* .card { */
+/*   transition: transform 0.15s ease; */
+/* } */
 
-.card:hover {
-  transform: translateY(-2px);
-}
+/* .card:hover { */
+/*   transform: translateY(-2px); */
+/* } */
 
 /* Header styling */
 header {
