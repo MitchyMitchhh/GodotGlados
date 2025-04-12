@@ -17,7 +17,7 @@ services:
     name: godot-rag-ui
     env: static
     buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: ./frontend/build
+    staticPublishPath: ./frontend/dist
     envVars:
       - key: REACT_APP_API_URL
         value: https://godot-rag-api.onrender.com/api

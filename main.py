@@ -8,18 +8,14 @@ import shutil
 from pathlib import Path
 import json
 import re
-
-# Import your existing modules for Qdrant and CLI
 import sys
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cli import query_database, index_project, index_godot_docs
 from qdrant import client
 
-# Initialize FastAPI app
 app = FastAPI(title="Godot RAG API")
 
-# Create uploads directory if it doesn't exist
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
