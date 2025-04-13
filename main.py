@@ -28,7 +28,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Define models
 class QueryRequest(BaseModel):
     query: str
     limit: int = 3
@@ -55,6 +54,7 @@ class CollectionResults(BaseModel):
 
 class QueryResponse(BaseModel):
     query: str
+    project_rules: Optional[str] = None
     contexts: List[CollectionResults]
 
 class BaseResponse(BaseModel):
@@ -68,43 +68,34 @@ class CollectionsResponse(BaseModel):
     success: bool
     collections: List[str]
 
-# Static config for storing paths and configs
 config = {
     'project_path': None,
     'rules_file': None
 }
 
-# API Routes
 @app.post("/api/query", response_model=QueryResponse)
 async def api_query(request: QueryRequest):
     try:
-        # Call the query_database function from cli.py
-        context = query_database(
+        context, project_rules = query_database(
             text=request.query,
             limit=request.limit,
             collections=request.collections,
             include_rules=request.include_rules
         )
-        
-        # Parse the results into a structured format
         results = {
             "query": request.query,
+            "project_rules": project_rules if request.include_rules else None,
             "contexts": []
         }
-        
-        # Process each collection's results
         current_collection = None
         collection_results = []
         
-        # Split by collection sections
         collection_pattern = r"--- CONTEXT FROM ([A-Z_]+) ---"
         collections_sections = re.split(collection_pattern, context)
-        
         # First item is likely the prompt, skip it
         if "Prompt:" in collections_sections[0]:
             collections_sections = collections_sections[1:]
-        
-        # Process the sections
+                
         for i in range(0, len(collections_sections), 2):
             if i+1 >= len(collections_sections):
                 break
@@ -112,20 +103,17 @@ async def api_query(request: QueryRequest):
             collection_name = collections_sections[i]
             collection_content = collections_sections[i+1]
             
-            # Parse the results in this collection
             source_pattern = r"--- From (.*?) ---\n(.*?)(?=\n--- From|\n\(Relevance score:|\Z)"
             score_pattern = r"\(Relevance score: ([\d.]+)\)"
             
             results_list = []
             
-            # Find all source blocks
             source_matches = re.finditer(source_pattern, collection_content, re.DOTALL)
             
             for match in source_matches:
                 source = match.group(1)
                 text = match.group(2).strip()
                 
-                # Try to find the score
                 score_match = re.search(score_pattern, collection_content)
                 score = float(score_match.group(1)) if score_match else 0.5
                 
@@ -148,10 +136,8 @@ async def api_query(request: QueryRequest):
 @app.post("/api/index-project", response_model=IndexResponse)
 async def api_index_project(request: IndexProjectRequest):
     try:
-        # Store the project path for future use
         config['project_path'] = request.project_path
         
-        # Call the indexing function
         stats = index_project(
             path=request.project_path, 
             chunk_size=request.chunk_size,
@@ -172,17 +158,13 @@ async def api_upload_rules(file: UploadFile = File(...)):
         if not file:
             raise HTTPException(status_code=400, detail="No file provided")
             
-        # Create a unique filename
         file_path = UPLOAD_DIR / file.filename
         
-        # Save the file
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
-        # Store the rules file path
         config['rules_file'] = str(file_path)
         
-        # Copy to project_rules.md in the current directory for the CLI tool
         rules_path = Path("project_rules.md")
         shutil.copy(file_path, rules_path)
         
@@ -196,7 +178,6 @@ async def api_upload_rules(file: UploadFile = File(...)):
 @app.post("/api/index-docs", response_model=IndexResponse)
 async def api_index_docs(request: IndexDocsRequest):
     try:
-        # Call the indexing function
         stats = index_godot_docs(
             version=request.version,
             collection_name=request.collection
@@ -223,13 +204,11 @@ async def api_get_collections():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Basic health check endpoint for Render
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
 
 if __name__ == "__main__":
     import uvicorn
-    # Get port from environment variable for Render compatibility
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)

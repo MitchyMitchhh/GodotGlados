@@ -12,22 +12,23 @@ def query_database(text, limit=3, collections=None, include_rules=False, update_
     """Query multiple collections and combine the results."""
     all_context = []
     all_context.append(f"Prompt: {text}")
+    project_rules = None
     if update_project:
         print('Updating Godot project file index')
         index_project()
     if include_rules:
         try:
+            rules_context = None
             rules_file_path = os.path.join(os.path.dirname(__file__), "project_rules.md")
             if os.path.exists(rules_file_path):
                 with open(rules_file_path, 'r') as f:
-                    rules_content = f.read()
-                all_context.append("--- PROJECT RULES ---")
-                all_context.append(rules_content)
+                    rules_context = f.read()
             else:
                 rules_context = get_context_for_query("project coding standards rules", 1, "godot_game")
-                if rules_context.strip():
-                    all_context.append("--- PROJECT RULES ---")
-                    all_context.append(rules_context)
+
+            project_rules = rules_context
+            all_context.append("--- PROJECT RULES ---\n\n" + rules_context + "\n")
+
         except Exception as e:
             print(f"Error retrieving project rules: {e}")
     
@@ -54,12 +55,16 @@ def query_database(text, limit=3, collections=None, include_rules=False, update_
         print("\n--- CONTEXT FOR LLM ---")
         print(combined_context)
         print("\n--- END CONTEXT ---")
-        pyperclip.copy(combined_context)
-        print("Context copied to clipboard!")
-        return combined_context
+        try:
+            pyperclip.copy(combined_context)
+            print("Context copied to clipboard!")
+        except:
+            print("Could not copy")
+            pass
+        return combined_context, project_rules
     else:
         print("No relevant context found in any collection.")
-        return ""
+        return "", ""
 
 def index_project(path=r"C:\Users\Mitch\Game Dev\Emergency-Hotfix", chunk_size=1000, chunk_overlap=200):
     """Index a Godot project into the vector database."""
