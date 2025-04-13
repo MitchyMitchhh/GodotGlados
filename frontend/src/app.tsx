@@ -17,6 +17,7 @@ interface Context {
 
 interface QueryResponse {
   query: string;
+  project_rules?: string;
   contexts: Context[];
 }
 
@@ -43,7 +44,7 @@ function App() {
   const [projectPath, setProjectPath] = useState<string>('');
   const [rulesFile, setRulesFile] = useState<File | null>(null);
   const [queryText, setQueryText] = useState<string>('');
-  const [includeRules, setIncludeRules] = useState<boolean>(false);
+  const [includeRules, setIncludeRules] = useState<boolean>(true);
   const [queryResults, setQueryResults] = useState<QueryResponse | null>(null);
   const [loading, setLoading] = useState<LoadingState>({
     indexProject: false,
@@ -153,6 +154,41 @@ function App() {
     }
   };
 
+  const copyResultsToClipboard = (data: QueryResponse) => {
+    if (!data || !data.contexts || data.contexts.length === 0) {
+      return false;
+    }
+    
+    try {
+      let clipboardText = `Prompt: ${data.query}\n\n`;
+      if (data.project_rules != null) {
+        clipboardText += data.project_rules;
+      }
+      data.contexts.forEach(context => {
+        clipboardText += `From ${context.collection}:\n`;
+        
+        context.results.forEach(result => {
+          clipboardText += `Source: ${result.source}\n${result.text}\n\n`;
+        });
+      });
+      
+      navigator.clipboard.writeText(clipboardText)
+        .then(() => {
+          console.log('Successfully copied to clipboard');
+          return true;
+        })
+        .catch(err => {
+          console.error('Failed to copy to clipboard:', err);
+          return false;
+        });
+        
+      return true;
+    } catch (error) {
+      console.error('Error in clipboard function:', error);
+      return false;
+    }
+  };
+
   const handleQuery = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!queryText.trim()) {
@@ -168,13 +204,24 @@ function App() {
         collections: selectedCollections,
         include_rules: includeRules
       });
-      
+      // Set results for UI display
       setQueryResults(response.data);
       
       if (response.data.contexts.length === 0) {
         showAlert('No relevant results found. Try a different query.', 'info');
       } else {
-        showAlert('Context copied to clipboard!', 'success');
+        try {
+          const copied = copyResultsToClipboard({...response.data});
+          
+          if (copied) {
+            showAlert('Context copied to clipboard!', 'success');
+          } else {
+            showAlert('Context retrieved successfully!', 'success');
+          }
+        } catch (clipError) {
+          console.error('Error in clipboard function call:', clipError);
+          showAlert('Context retrieved successfully!', 'success');
+        }
       }
     } catch (error: any) {
       console.error('Error querying:', error);
@@ -193,7 +240,6 @@ function App() {
   };
 
   const formatContent = (text: string) => {
-    // Check if text looks like code
     const isCode = text.includes('func ') || 
                    text.includes('var ') || 
                    text.includes('import ') ||
@@ -202,7 +248,6 @@ function App() {
     if (isCode) {
       return <pre className="mb-0 bg-light p-3 rounded">{text}</pre>;
     } else {
-      // Format markdown-like content
       const formattedText = text
         .replace(/# (.*)/g, '<h5>$1</h5>')
         .replace(/## (.*)/g, '<h6>$1</h6>')
@@ -345,13 +390,13 @@ function App() {
                     <Form.Label>What would you like to know?</Form.Label>
                     <Form.Control
                       as="textarea"
-                      rows={3}
+                      rows={6}
                       placeholder="E.g., How do I implement player movement?"
                       value={queryText}
                       onChange={(e) => setQueryText(e.target.value)}
                     />
                   </Form.Group>
-                  
+                  <div className="mb-4"></div>
                   <Form.Group className="mb-3">
                     <Form.Check
                       type="checkbox"
@@ -425,6 +470,18 @@ function App() {
             <Col xs={12}>
               <div className="mt-4">
                 <h5>Results for: "{queryResults.query}"</h5>
+                
+                {/* Display project rules if available */}
+                {queryResults.project_rules && (
+                  <Card className="mb-4 shadow-sm">
+                    <Card.Header className="bg-warning">
+                      <h6 className="mb-0">Project Rules</h6>
+                    </Card.Header>
+                    <Card.Body>
+                      {formatContent(queryResults.project_rules)}
+                    </Card.Body>
+                  </Card>
+                )}
                 
                 {queryResults.contexts.length > 0 ? (
                   queryResults.contexts.map((context, contextIndex) => (
