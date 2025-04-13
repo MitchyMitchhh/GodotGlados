@@ -17,6 +17,7 @@ interface Context {
 
 interface QueryResponse {
   query: string;
+  project_rules?: string;
   contexts: Context[];
 }
 
@@ -203,7 +204,6 @@ function App() {
         collections: selectedCollections,
         include_rules: includeRules
       });
-      console.log(response) 
       // Set results for UI display
       setQueryResults(response.data);
       
@@ -227,7 +227,6 @@ function App() {
       console.error('Error querying:', error);
       showAlert(`Error querying: ${error.response?.data?.detail || error.message}`, 'danger');
     } finally {
-      console.log('Query operation completed');
       setLoading(prev => ({ ...prev, query: false }));
     }
   };
@@ -471,6 +470,18 @@ function App() {
             <Col xs={12}>
               <div className="mt-4">
                 <h5>Results for: "{queryResults.query}"</h5>
+                
+                {/* Display project rules if available */}
+                {queryResults.project_rules && (
+                  <Card className="mb-4 shadow-sm">
+                    <Card.Header className="bg-warning">
+                      <h6 className="mb-0">Project Rules</h6>
+                    </Card.Header>
+                    <Card.Body>
+                      {formatContent(queryResults.project_rules)}
+                    </Card.Body>
+                  </Card>
+                )}
                 
                 {queryResults.contexts.length > 0 ? (
                   queryResults.contexts.map((context, contextIndex) => (
