@@ -16,6 +16,7 @@ QDRANT_URL = "https://401a1d8d-9b06-41b9-b8b3-5c839ac6d254.us-east-1-0.aws.cloud
 client = QdrantClient(
     url=QDRANT_URL,
     api_key=api_key,
+    timeout=60.0
 )
 
 # Initialize embedding model
@@ -174,7 +175,15 @@ def process_file_batch(batch_files, project_path, model, stats, client, collecti
     for file_path in batch_files:
         file_points, stats = process_file(file_path, project_path, model, stats)
         batch_points.extend(file_points)
+        
+        # Upload in smaller sub-batches (e.g., every 5 points)
+        if len(batch_points) >= 5:  # Reduced from 10 to 5
+            success = upload_batch_with_retry(client, collection_name, batch_points)
+            if not success:
+                stats["errors"] += 1
+            batch_points = []  # Clear the batch after upload
     
+    # Upload any remaining points
     if batch_points:
         success = upload_batch_with_retry(client, collection_name, batch_points)
         if not success:
@@ -218,7 +227,7 @@ def index_godot_project(
     client: QdrantClient,
     collection_name: str = "godot_game",
     model: SentenceTransformer = None,
-    file_extensions: List[str] = [".gd", ".md", ".txt", ".cfg"],
+    file_extensions: List[str] = [".gd", ".tres", ".tscn", ".md", ".txt", ".cfg"],
     chunk_size: int = 1000,
     chunk_overlap: int = 200
 ):
