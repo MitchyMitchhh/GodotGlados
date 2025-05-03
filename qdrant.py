@@ -17,6 +17,7 @@ endpoint_url = os.environ.get("QDRANT_ENDPOINT")
 client = QdrantClient(
     url=endpoint_url,
     api_key=api_key,
+    timeout=60.0
 )
 
 # Initialize embedding model
@@ -208,6 +209,7 @@ def index_godot_docs(version="stable", collection_name="godot_docs"):
         project_path=os.path.join(docs_path, "classes"),
         client=client,
         collection_name=collection_name,
+        model=SentenceTransformer("all-MiniLM-L6-v2"),
         file_extensions=[".rst", ".md", ".txt"]
     )
     
@@ -219,7 +221,7 @@ def index_godot_project(
     client: QdrantClient,
     collection_name: str = "godot_game",
     model: SentenceTransformer = None,
-    file_extensions: List[str] = [".gd", ".md", ".txt", ".cfg"],
+    file_extensions: List[str] = [".gd", ".tres", ".tscn", ".md", ".txt", ".cfg"],
     chunk_size: int = 1000,
     chunk_overlap: int = 200
 ):
@@ -362,7 +364,7 @@ def run_godot_index():
         client=client,
         collection_name="godot_game",
         model=model,
-        file_extensions=[".gd", ".md", ".txt", ".cfg", ".json"],
+        file_extensions=[".gd", ".md", ".txt", ".cfg", ".json", ".tres", ".tscn"],
         chunk_size=1000,
         chunk_overlap=200
     )
