@@ -1,7 +1,10 @@
 # EMERGENCY-HOTFIX PROJECT STANDARDS
-# Always reference these rules when writing or modifying code
+# Always reference these rules when writing or modifying code.
+# Code from the GODOT_DOCS context is documentation only to be referenced, it's not my own code for the game to be edited.
+# If you are struggling to debug or generate code, feel free to ask me for more/clarifing information
 
 # CODING STYLE
+- Write code for a godot project using gdscript
 - Always use tabs for indentation, never spaces
 - Alter and use the existing code provided in context first before generating new code
 - Variable names use snake_case
@@ -20,3 +23,4 @@
 - Cache node references with @onready var
 - Use object pooling for frequently spawned objects (bullets, effects)
 - Prefer 2D physics for gameplay mechanics
+

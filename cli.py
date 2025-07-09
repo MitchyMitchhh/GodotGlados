@@ -8,7 +8,7 @@ import pyperclip
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from qdrant import *  # This imports all variables and functions
 
-def query_database(text, limit=3, collections=None, include_rules=False, update_project=False):
+def query_database(text, limit=2, collections=None, include_rules=False, update_project=False):
     """Query multiple collections and combine the results."""
     all_context = []
     all_context.append(f"Prompt: {text}")
@@ -43,6 +43,8 @@ def query_database(text, limit=3, collections=None, include_rules=False, update_
     
     for collection in collections:
         try:
+            if collection == 'godot_game':
+                limit = 10
             context = get_context_for_query(text, limit, collection)
             if context.strip():
                 all_context.append(f"\n--- CONTEXT FROM {collection.upper()} ---")
