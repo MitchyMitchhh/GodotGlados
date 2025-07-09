@@ -315,7 +315,7 @@ def index_file(file_path):
     except Exception as e:
         print(f"Error indexing {file_path}: {e}")
 
-def get_context_for_query(query, limit=3, collection_name="godot_game"):
+def get_context_for_query(query, limit=2, collection_name="godot_game"):
     """
     Query a collection for relevant context.
     
